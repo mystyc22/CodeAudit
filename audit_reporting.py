@@ -417,9 +417,17 @@ def build_professional_reports(root,out,var_stats,excluded,previous_arg,disable_
     write_csv(out/"git_monthly.csv",["month","commits","source_commits","additions","deletions"],git.get("timeline_monthly",[]))
     write_csv(out/"git_weekly.csv",["week","commits","source_commits","additions","deletions"],git.get("timeline_weekly",[]))
     write_csv(out/"git_hotspots.csv",["file","commits","additions","deletions","churn"],git.get("all_changed_files",[]))
-    write_markdown(out,data,current,quality,risk,previous,comparison)
-    write_markdown_extras(out,data)
+    from i18n import write_multilang_csv, write_all_markdown_reports, build_multilang_executive_summary
+    data["executive_summary_i18n"] = build_multilang_executive_summary(data, current, quality, risk, previous, xs)
+    data["executive_summary"] = data["executive_summary_i18n"].get("en") or data.get("executive_summary")
+    write_multilang_csv(out, "sensitive_files", ["file","priority","risk_index","domains","reasons","cc_max","mi","lines","eslint_total","eslint_priority","is_sensitive"],
+                        [{**r,"domains":"; ".join(r['domains']),"reasons":"; ".join(r['reasons'])} for r in risk])
+    write_multilang_csv(out, "git_commits", ["sha","date","author","subject","files","source_files","additions","deletions"], git.get("commits", []))
+    write_multilang_csv(out, "git_monthly", ["month","commits","source_commits","additions","deletions"], git.get("timeline_monthly", []))
+    write_multilang_csv(out, "git_weekly", ["week","commits","source_commits","additions","deletions"], git.get("timeline_weekly", []))
+    write_multilang_csv(out, "git_hotspots", ["file","commits","additions","deletions","churn"], git.get("all_changed_files", []))
+    write_all_markdown_reports(out, data)
     from html_dashboard import write_dashboard
     write_dashboard(out,data)
-    print(f"Oddzielny var/: {var_stats.get('files',0)} plików, {var_stats.get('bytes',0)/(1024**3):.2f} GiB",flush=True)
-    print(f"Wrażliwe/krytyczne moduły w rankingu: {len(risk)}; poprzedni pomiar: {previous_path or 'brak'}",flush=True)
+    print(f"var/ inventory: {var_stats.get('files',0)} files, {var_stats.get('bytes',0)/(1024**3):.2f} GiB", flush=True)
+    print(f"Sensitive / high-complexity modules flagged: {len(risk)}; baseline: {previous_path or 'none'}", flush=True)

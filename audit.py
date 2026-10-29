@@ -27,6 +27,13 @@ import subprocess
 import sys
 import tokenize
 
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 try:
     from radon.complexity import cc_rank, cc_visit
     from radon.metrics import h_visit, mi_rank, mi_visit
@@ -499,26 +506,28 @@ def produce_report(root, out, files, functions, eslint, errors, dirs, hidden_dir
     for key, pkg in (("lizard", "lizard"), ("vulture", "vulture"), ("bandit", "bandit"), ("pip_audit", "pip-audit")):
         metadata[f"{key}_version"] = (extras or {}).get(key, {}).get("version")
     (out / "metrics.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2, allow_nan=False), encoding="utf-8")
-    write_csv(out / "issues.csv", ["file", "line", "column", "end_line", "end_column", "severity", "rule", "message", "fatal"], es_issues)
-    write_csv(out / "functions.csv", ["file", "category", "name", "kind", "line", "end_line", "cc", "rank"],
-              sorted(functions, key=lambda r: (-r["cc"], r["file"], r["line"])))
+    from i18n import write_multilang_csv
+    write_multilang_csv(out, "issues", ["file", "line", "column", "end_line", "end_column", "severity", "rule", "message", "fatal"], es_issues)
+    write_multilang_csv(out, "functions", ["file", "category", "name", "kind", "line", "end_line", "cc", "rank"],
+                        sorted(functions, key=lambda r: (-r["cc"], r["file"], r["line"])))
     ex = extras or {}
     if ex.get("lizard", {}).get("functions"):
-        write_csv(out / "js_functions.csv", ["file", "category", "name", "line", "end_line", "cc", "nloc", "params", "tokens"],
-                  sorted(ex["lizard"]["functions"], key=lambda r: (-r["cc"], r["file"], r["line"])))
+        write_multilang_csv(out, "js_functions", ["file", "category", "name", "line", "end_line", "cc", "nloc", "params", "tokens"],
+                            sorted(ex["lizard"]["functions"], key=lambda r: (-r["cc"], r["file"], r["line"])))
     if ex.get("bandit", {}).get("issues"):
-        write_csv(out / "security_bandit.csv", ["file", "category", "line", "severity", "confidence", "test_id", "test_name", "cwe", "text"],
-                  sorted(ex["bandit"]["issues"], key=lambda r: ({"HIGH": 0, "MEDIUM": 1}.get(r["severity"], 2), r["file"], r["line"])))
+        write_multilang_csv(out, "security_bandit", ["file", "category", "line", "severity", "confidence", "test_id", "test_name", "cwe", "text"],
+                            sorted(ex["bandit"]["issues"], key=lambda r: ({"HIGH": 0, "MEDIUM": 1}.get(r["severity"], 2), r["file"], r["line"])))
     if ex.get("pip_audit", {}).get("vulnerabilities"):
-        write_csv(out / "security_dependencies.csv", ["requirements", "package", "version", "id", "aliases", "fix_versions", "description"],
-                  [{**v, "aliases": "; ".join(v["aliases"]), "fix_versions": "; ".join(v["fix_versions"])} for v in ex["pip_audit"]["vulnerabilities"]])
+        write_multilang_csv(out, "security_dependencies", ["requirements", "package", "version", "id", "aliases", "fix_versions", "description"],
+                            [{**v, "aliases": "; ".join(v["aliases"]), "fix_versions": "; ".join(v["fix_versions"])} for v in ex["pip_audit"]["vulnerabilities"]])
     if ex.get("vulture", {}).get("items"):
-        write_csv(out / "dead_code.csv", ["file", "category", "line", "type", "name", "confidence"], ex["vulture"]["items"])
+        write_multilang_csv(out, "dead_code", ["file", "category", "line", "type", "name", "confidence"], ex["vulture"]["items"])
     if ex.get("duplication", {}).get("blocks"):
-        write_csv(out / "duplication.csv", ["a", "a_from", "a_to", "b", "b_from", "b_to", "lines"], ex["duplication"]["blocks"])
+        dup_blocks = [{"file_a": b["a"], "a_from": b["a_from"], "a_to": b["a_to"], "file_b": b["b"], "b_from": b["b_from"], "b_to": b["b_to"], "lines": b["lines"]} for b in ex["duplication"]["blocks"]]
+        write_multilang_csv(out, "duplication", ["file_a", "a_from", "a_to", "file_b", "b_from", "b_to", "lines"], dup_blocks)
     if ex.get("deps", {}).get("all_edges"):
-        write_csv(out / "dependencies.csv", ["from", "to"], [{"from": a_, "to": b_} for a_, b_ in ex["deps"]["all_edges"]])
-    write_csv(out / "files.csv", ["path", "category", "folder", "bytes", "physical_lines", "nonempty_lines", "py_sloc", "py_lloc", "py_cc_max", "py_mi", "halstead_volume", "halstead_difficulty"], [
+        write_multilang_csv(out, "dependencies", ["from", "to"], [{"from": a_, "to": b_} for a_, b_ in ex["deps"]["all_edges"]])
+    write_multilang_csv(out, "files", ["path", "category", "folder", "bytes", "physical_lines", "nonempty_lines", "py_sloc", "py_lloc", "py_cc_max", "py_mi", "halstead_volume", "halstead_difficulty"], [
         {**f,
          "py_sloc": (f["radon"] or {}).get("raw", {}).get("sloc") if (f["radon"] or {}).get("raw") else None,
          "py_lloc": (f["radon"] or {}).get("raw", {}).get("lloc") if (f["radon"] or {}).get("raw") else None,
@@ -702,14 +711,14 @@ def main():
         parser.error("--out nie może wskazywać katalogu wewnątrz analizowanego projektu")
     out.mkdir(parents=True, exist_ok=True)
     started = datetime.now(timezone.utc)
-    print(f"CodeAudit {VERSION}\nProjekt: {root}\nWyniki: {out}", flush=True)
+    print(f"CodeAudit {VERSION}\nProject: {root}\nOutput: {out}", flush=True)
     settings = load_settings()
     files, errors, dirs, hidden_dirs, excluded = file_inventory(root, out, args.include_work, args.include_hidden, settings["excluded_files"])
-    print(f"Kod źródłowy: {len(files)} plików; wyłączone pliki: {len(excluded)}; katalogów: {dirs}", flush=True)
-    print("Inwentaryzacja var (bez analizy kodu)...", flush=True)
+    print(f"Source files: {len(files)}; excluded files: {len(excluded)}; directories: {dirs}", flush=True)
+    print("Cataloging var/ directory (runtime inventory)...", flush=True)
     var_stats = {"present": False, "files": 0, "bytes": 0, "directories": 0} if args.skip_var_inventory else inventory_var(root)
     functions, pycount = scan_files(root, files, errors)
-    print(f"Radon: przeanalizowano {pycount} plików Python, {len(functions)} funkcji/metod", flush=True)
+    print(f"Radon: analyzed {pycount} Python files, {len(functions)} functions/methods", flush=True)
     eslint = run_eslint(root, files, errors, args.batch_size, args.no_eslint)
     from extra_analyzers import run_extras
     if args.no_extras:
@@ -720,17 +729,17 @@ def main():
             "duplication": not args.no_duplication, "deps": not args.no_deps, "pip_audit": args.pip_audit,
             "requirements": reqs})
     summary = produce_report(root, out, files, functions, eslint, errors, dirs, hidden_dirs, pycount, started, extras)
-    # Historia lokalnego Git: tylko odczyt, bez sieci, bez zmiany indexu/repozytorium.
+    # Local Git history: read-only, offline, no index/repo mutation.
     from git_history import scan_git
-    print("Git: analizowanie śledzonych plików i historii commitów...", flush=True)
+    print("Git: analyzing tracked files and commit history...", flush=True)
     git_info = scan_git(root, files, excluded, args.git_max_commits, disabled=args.no_git)
-    print(f"Git: {git_info['status']}; commity: {git_info['commits_analyzed']}; śledzone pliki: {git_info['tracked_files']}", flush=True)
+    print(f"Git status: {git_info['status']}; commits: {git_info['commits_analyzed']}; tracked files: {git_info['tracked_files']}", flush=True)
     from audit_reporting import build_professional_reports
     build_professional_reports(root, out, var_stats, excluded, args.previous, args.no_previous, git_info)
-    print("\nZakończono.\n" + "\n".join(str(p) for p in sorted(out.iterdir()) if p.suffix in {".html", ".md", ".json", ".csv"}))
-    print(f"Pliki projektu: {summary['files']}; linie kodu: {summary['code_physical_lines']}; problemy pomiaru: {summary['errors_count']}")
+    print("\nAudit completed.\n" + "\n".join(str(p) for p in sorted(out.iterdir()) if p.suffix in {".html", ".md", ".json", ".csv"}))
+    print(f"Project files: {summary['files']}; code lines: {summary['code_physical_lines']}; scan diagnostics: {summary['errors_count']}")
     if errors or eslint["status"] in {"partial", "unavailable"}:
-        print("UWAGA: pomiar częściowy lub zawiera diagnostykę — zobacz sekcję 11 raportu.")
+        print("NOTE: partial audit or diagnostic notices recorded — see Section 11 of report.")
     return 0
 
 

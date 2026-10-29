@@ -110,30 +110,43 @@ cd C:\Tools\CodeAudit
 .\Run-CodeAudit.ps1 -ProjectPath "C:\path\to\your-project" -PipAudit -Requirements C:\Tools\CodeAudit\pinned-requirements.txt
 ```
 
-## 5. Raporty i eksporty
+## 5. Raporty i eksporty wielojęzyczne (PL, EN, ZH)
 
-Każde uruchomienie tworzy nowy katalog, np. `C:\Tools\CodeAudit\reports\Kenya_curier_20261028_031000\`:
+CodeAudit generuje kompletne raporty audytowe równocześnie w **3 językach**: polskim, angielskim i uproszczonym chińskim.
 
-| Plik | Zawartość |
-|---|---|
-| `report.html` | Interaktywny dashboard, animacje wykresów, filtrowane ryzyka i alerty, historia Git |
-| `report.md` | Rozbudowany raport tekstowy, tabele Halsteada, MI, CC, ESLint, Git |
-| `metrics.json` | Całe dane pomiaru do porównań między uruchomieniami |
-| `files.csv` | Zestawienie każdego analizowanego pliku |
-| `functions.csv` | CC i klasy A–F wszystkich funkcji i metod Python |
-| `issues.csv` | Pełne zgłoszenia ESLint |
-| `sensitive_files.csv` | Lista wrażliwych domenowo i złożonych plików; ręczny triage |
-| `git_commits.csv` | Wszystkie przeanalizowane commity (limit domyślnie 800) |
-| `git_monthly.csv` | Miesięczne statystyki Git |
-| `git_weekly.csv` | Tygodniowe statystyki Git |
-| `git_hotspots.csv` | Wszystkie zmieniane pliki kodu i churn w oknie historii |
-| `js_functions.csv` | Złożoność (CC, NLOC, parametry) funkcji JS/TS — lizard |
-| `security_bandit.csv` | Znaleziska bandit (wartości podejrzanych haseł są zastępowane `***`) |
-| `security_dependencies.csv` | Podatności zależności — tylko przy `-PipAudit` |
-| `dead_code.csv` | Kandydaci na martwy kod — vulture |
-| `duplication.csv` | Największe zduplikowane bloki |
-| `dependencies.csv` | Krawędzie grafu importów (kto importuje kogo) |
-| `..\history_<projekt>.json` | Historia wyników do wykresu trendu (w folderze `reports`) |
+### 5.1 Interaktywny Dashboard HTML offline (`report.html`)
+- **Przełącznik 3 języków (PL / EN / ZH)**: wygodne przyciski w górnym pasku nawigacyjnym pozwalają natychmiast zmienić język całego interfejsu bez przeładowywania strony.
+- **100% Offline (Zero CDN)**: biblioteka Apache ECharts jest osadzona lokalnie w pliku HTML (`vendor/echarts.min.js`), dzięki czemu pulpit działa w izolowanych środowiskach bez dostępu do sieci.
+- **Dynamiczna lokalizacja**: przełączenie języka aktualizuje etykiety nawigacji, sekcje, karty KPI, nagłówki tabel, rekomendacje audytowe oraz wykresy ECharts.
+- **Modułowa architektura i18n (`i18n.py`)**: ułatwia dodawanie kolejnych języków poprzez rejestrację słowników tłumaczeń.
+
+### 5.2 Raporty Markdown (`.md`)
+Generowane w dedykowanych plikach językowych:
+- `report.md`: Raport domyślny (język angielski).
+- `report_pl.md`: Raport w języku polskim (*Raport jakości i długu technicznego*).
+- `report_en.md`: Raport w języku angielskim (*Code Quality & Maintainability Audit*).
+- `report_zh.md`: Raport w języku chińskim (*代码质量与可维护性技术审计报告*).
+
+### 5.3 Zestawienia CSV w 3 językach (`.csv`)
+Wszystkie pliki CSV generowane są w wersjach językowych z przetłumaczonymi nagłówkami kolumn i wartościami kategorycznymi (wagi alertów, rodzaje funkcji, priorytety). Zapisywane w formacie **UTF-8 z BOM (`utf-8-sig`)**, co gwarantuje natychmiastowe, poprawne otwarcie w Microsoft Excel bez problemów z kodowaniem znaków diakrytycznych:
+
+| Zestaw danych | Warianty językowe | Opis |
+|---|---|---|
+| `files.csv` | `files_pl.csv`, `files_en.csv`, `files_zh.csv` | Zestawienie każdego analizowanego pliku z metrykami CC, MI i Halstead |
+| `functions.csv` | `functions_pl.csv`, `functions_en.csv`, `functions_zh.csv` | CC i klasy A–F wszystkich funkcji i metod Python |
+| `js_functions.csv` | `js_functions_pl.csv`, `_en.csv`, `_zh.csv` | Złożoność (CC, NLOC, parametry) funkcji JS/TS — Lizard |
+| `issues.csv` | `issues_pl.csv`, `issues_en.csv`, `issues_zh.csv` | Pełne zgłoszenia ESLint / SonarJS / React Hooks |
+| `security_bandit.csv` | `security_bandit_pl.csv`, `_en.csv`, `_zh.csv` | Znaleziska Bandit (podejrzane hasła zamaskowane jako `***`) |
+| `security_dependencies.csv` | `security_dependencies_pl.csv`, `_en.csv`, `_zh.csv` | Podatności CVE zależności — Pip-Audit |
+| `dead_code.csv` | `dead_code_pl.csv`, `dead_code_en.csv`, `dead_code_zh.csv` | Kandydaci na martwy kod — Vulture |
+| `duplication.csv` | `duplication_pl.csv`, `duplication_en.csv`, `duplication_zh.csv` | Największe zduplikowane bloki kodu |
+| `dependencies.csv` | `dependencies_pl.csv`, `_en.csv`, `_zh.csv` | Krawędzie grafu importów między modułami |
+| `sensitive_files.csv` | `sensitive_files_pl.csv`, `_en.csv`, `_zh.csv` | Lista modułów krytycznych domenowo do ręcznego review |
+| `git_commits.csv` | `git_commits_pl.csv`, `git_commits_en.csv`, `git_commits_zh.csv` | Historia commitów w oknie analizy |
+| `git_hotspots.csv` | `git_hotspots_pl.csv`, `git_hotspots_en.csv`, `git_hotspots_zh.csv` | Najczęściej zmieniane pliki kodu i churn |
+| `git_monthly.csv` / `weekly.csv` | `git_monthly_*.csv`, `git_weekly_*.csv` | Miesięczne i tygodniowe statystyki przyrostu i usuwania kodu |
+| `metrics.json` | — | Pełny zrzut metryk do automatycznych porównań między audytami |
+| `..\history_<projekt>.json` | — | Zapisana historia wyników do wykresu trendu w folderze `reports` |
 
 ## 6. Zakres i wyłączenia
 

@@ -1,7 +1,7 @@
 """CodeAudit 2.2 — rozszerzenie dashboardu: sekcje HTML, CSS i skrypt wykresów (Apache ECharts, offline).
 
-Moduł nie zmienia dotychczasowego szablonu 2.1; wstrzykuje nowe sekcje w znane punkty
-(`inject`). Jeśli którykolwiek punkt nie zostanie znaleziony, sekcja trafia na koniec <main>.
+Moduł nie zmienia logiki analitycznej; wstrzykuje nowe sekcje w znane punkty
+(`inject`). Wszystkie sekcje obsługują wielojęzyczność (EN, PL, ZH).
 """
 from __future__ import annotations
 
@@ -36,12 +36,18 @@ body.light .sevH{color:#a3202c}body.light .sevM{color:#8a540a}body.light .sevL{c
 .fmStat b{display:block;font-size:19px;font-variant-numeric:tabular-nums}.fmStat span{font-size:11px;color:var(--muted)}
 .cyc{padding:10px 12px;border:1px solid var(--line);border-radius:10px;margin:8px 0;background:var(--surface2);font-size:12px;line-height:1.7}
 .hint{font-size:11px;color:var(--muted);margin-top:8px}
+.topActions{display:flex;gap:10px;align-items:center}
+.langPicker{display:inline-flex;background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:2px;gap:2px}
+.langBtn{background:transparent;border:0;color:var(--muted);font-size:12px;font-weight:750;padding:5px 10px;border-radius:8px;cursor:pointer;transition:all .18s}
+.langBtn:hover{color:var(--text);border-color:transparent;background:rgba(255,255,255,.05)}
+.langBtn.active{background:linear-gradient(140deg,var(--cyan),var(--violet));color:#071526;box-shadow:0 2px 8px rgba(99,199,250,.35)}
+body.light .langBtn.active{color:#fff;background:linear-gradient(140deg,#1c86ca,#7955c4)}
 @media(max-width:1100px){.execGrid{grid-template-columns:1fr}}
 @media print{
  @page{size:A4;margin:11mm}
  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
  body,body.light{--bg:#fff;--surface:#fff;--surface2:#f3f6fa;--line:#d5dce6;--text:#111827;--muted:#475569;--shadow:none;background:#fff!important;color:#111827!important}
- .top,.filters,.pager,#theme,#printBtn,.toolbar,.modalBack,button{display:none!important}
+ .top,.filters,.pager,#theme,#printBtn,.toolbar,.modalBack,button,.langPicker{display:none!important}
  .shell{max-width:none;padding:0}.hero{padding:6px 0 14px}.hero h1{font-size:34px}.hero h1 em{color:#1b7fb5;background:none;-webkit-text-fill-color:#1b7fb5}
  .card{box-shadow:none;animation:none!important;break-inside:avoid;background:#fff}.section{break-after:avoid;margin-top:26px}
  .fadein{opacity:1!important;transform:none!important}.tblWrap,.gitRecent{max-height:none!important;overflow:visible!important}
@@ -51,78 +57,78 @@ body.light .sevH{color:#a3202c}body.light .sevM{color:#8a540a}body.light .sevL{c
 '''
 
 EXEC_HTML = '''<section class="layout" id="exec"><div class="card span12"><div class="execGrid"><div>
-<div class="eyebrow">STRESZCZENIE ZARZĄDCZE</div><div class="execHead" id="execHead">—</div><ul class="execList" id="execFacts"></ul></div>
-<div><div class="eyebrow">OD CZEGO ZACZĄĆ</div><ol class="actions" id="execActions" style="margin-top:12px"></ol>
-<p class="hint">Streszczenie jest generowane automatycznie z liczb poniżej. Wyniki to sygnały do przeglądu, nie wyroki — szczególnie bandit i vulture dają fałszywe alarmy.</p></div></div></div></section>
+<div class="eyebrow" data-i18n="exec_title">EXECUTIVE SUMMARY</div><div class="execHead" id="execHead">—</div><ul class="execList" id="execFacts"></ul></div>
+<div><div class="eyebrow" data-i18n="actions_title">RECOMMENDED ACTIONS</div><ol class="actions" id="execActions" style="margin-top:12px"></ol>
+<p class="hint" data-i18n="exec_hint">Summary is generated automatically from the metrics below. Findings are triage signals, not absolute verdicts.</p></div></div></div></section>
 '''
 
 KPI2_HTML = '''<section class="layout kpiRow" id="kpi2">
-<div class="card kpi"><div class="label">Bezpieczeństwo · bandit (bez testów)</div><div class="metric" id="kSec">—</div><div class="sub" id="kSecSub"></div></div>
-<div class="card kpi"><div class="label">Martwy kod · kandydaci vulture</div><div class="metric" id="kDead">—</div><div class="sub" id="kDeadSub"></div></div>
-<div class="card kpi"><div class="label">Duplikacja kodu (heurystyka)</div><div class="metric" id="kDup">—</div><div class="sub" id="kDupSub"></div></div>
-<div class="card kpi"><div class="label">Zależności · cykle importów</div><div class="metric" id="kDeps">—</div><div class="sub" id="kDepsSub"></div></div>
+<div class="card kpi"><div class="label" data-i18n="kpi_sec">Security · Bandit (excl. tests)</div><div class="metric" id="kSec">—</div><div class="sub" id="kSecSub"></div></div>
+<div class="card kpi"><div class="label" data-i18n="kpi_dead">Dead code · Vulture candidates</div><div class="metric" id="kDead">—</div><div class="sub" id="kDeadSub"></div></div>
+<div class="card kpi"><div class="label" data-i18n="kpi_dup">Code duplication (heuristic)</div><div class="metric" id="kDup">—</div><div class="sub" id="kDupSub"></div></div>
+<div class="card kpi"><div class="label" data-i18n="kpi_deps">Dependencies · Import cycles</div><div class="metric" id="kDeps">—</div><div class="sub" id="kDepsSub"></div></div>
 </section>
 '''
 
 RADAR_HTML = '''<section class="layout" id="radarSec">
-<div class="card span6"><div class="panelHead"><div><h3>Radar zdrowia kodu</h3><div class="muted small">Osie 0–100, wyżej = lepiej. Indeks główny powyżej pozostaje bez zmian, by dało się porównywać audyty.</div></div>
-<div class="toolbar"><select id="radarMode" aria-label="Tryb radaru"><option value="all">Bieżący — wszystkie osie</option><option value="cmp">Porównanie z poprzednim audytem</option></select></div></div>
+<div class="card span6"><div class="panelHead"><div><h3 data-i18n="radar_title">Code Health Radar</h3><div class="muted small" data-i18n="radar_sub">Axes 0–100, higher = better. Independent of main score to allow historical comparability.</div></div>
+<div class="toolbar"><select id="radarMode" aria-label="Radar mode"><option value="all" data-i18n="radar_mode_all">Current — all axes</option><option value="cmp" data-i18n="radar_mode_cmp">Comparison with previous audit</option></select></div></div>
 <div class="chart mid" id="radarChart"></div><div class="hint" id="radarNote"></div></div>
-<div class="card span6"><div class="panelHead"><div><h3>Trend między audytami</h3><div class="muted small">Dane z folderu reports (history_*.json oraz wcześniejsze metrics.json tego projektu)</div></div>
-<div class="toolbar"><select id="trendMetric" aria-label="Metryka trendu"><option value="score">Indeks utrzymywalności</option><option value="loc">Linie kodu</option><option value="eslint">Zgłoszenia ESLint</option><option value="sec">Bandit HIGH+MEDIUM</option><option value="dead">Martwy kod</option><option value="dup">Duplikacja %</option><option value="cc_ab">CC A/B %</option><option value="js_cc_over15">Funkcje JS CC&gt;15</option><option value="cycles">Cykle importów</option></select></div></div>
+<div class="card span6"><div class="panelHead"><div><h3 data-i18n="trend_title">Multi-Audit Trend</h3><div class="muted small" data-i18n="trend_sub">Data aggregated across historical metrics.json files in reports directory</div></div>
+<div class="toolbar"><select id="trendMetric" aria-label="Trend metric"><option value="score">Maintainability Score</option><option value="loc">Lines of Code</option><option value="eslint">ESLint Issues</option><option value="sec">Bandit HIGH+MED</option><option value="dead">Dead Code</option><option value="dup">Duplication %</option><option value="cc_ab">CC A/B %</option><option value="js_cc_over15">JS Functions CC&gt;15</option><option value="cycles">Import Cycles</option></select></div></div>
 <div class="chart mid" id="trendChart"></div><div class="hint" id="trendNote"></div></div>
 </section>
 '''
 
-MAP_HTML = '''<div class="section" id="map"><div><h2>Mapa kodu</h2><p>Gdzie dokładnie w projekcie koncentrują się złożoność, błędy i zmiany — kliknij plik, aby zobaczyć szczegóły</p></div></div>
+MAP_HTML = '''<div class="section" id="map"><div><h2 data-i18n="map_title">Codebase Map</h2><p data-i18n="map_sub">Visual distribution of complexity, defects, and churn — click any file for details</p></div></div>
 <section class="layout">
-<div class="card span12"><div class="panelHead"><div><h3>Treemap projektu</h3><div class="muted small">Powierzchnia = liczba linii, kolor = wybrana miara (zielony → czerwony). Kliknij katalog, aby przybliżyć.</div></div>
-<div class="toolbar"><label for="treeMetric">Kolor:</label><select id="treeMetric"><option value="r">Indeks triage (ryzyko)</option><option value="cc">Złożoność (CC maks.)</option><option value="mi">Maintainability (niski MI)</option><option value="es">Zgłoszenia ESLint</option><option value="sec">Bezpieczeństwo (bandit)</option><option value="dead">Martwy kod</option><option value="dup">Duplikacja %</option><option value="n">Liczba commitów</option></select></div></div>
-<div class="chart tall" id="treeChart"></div><div class="legendBar"></div><div class="legendTxt"><span>niski</span><span id="treeLegendMax">wysoki</span></div><div class="hint"><i class="grey"></i>brak danych dla tej miary (np. MI liczone tylko dla Pythona)</div></div>
-<div class="card span12"><div class="panelHead"><div><h3 id="hotTitle">Hotspoty: zmiany × złożoność</h3><div class="muted small" id="hotSub">Prawy górny róg to pliki jednocześnie złożone i często zmieniane — dobre kandydaty do przeglądu. Wielkość bąbla = liczba linii.</div></div></div>
+<div class="card span12"><div class="panelHead"><div><h3 data-i18n="treemap_title">Project Treemap</h3><div class="muted small" data-i18n="treemap_sub">Area = line count, Color = selected metric (green → red). Click directories to zoom.</div></div>
+<div class="toolbar"><label for="treeMetric" data-i18n="lbl_color">Color:</label><select id="treeMetric"><option value="r">Triage Index (Risk)</option><option value="cc">Complexity (Max CC)</option><option value="mi">Maintainability (Low MI)</option><option value="es">ESLint Alerts</option><option value="sec">Security (Bandit)</option><option value="dead">Dead Code</option><option value="dup">Duplication %</option><option value="n">Commit Count</option></select></div></div>
+<div class="chart tall" id="treeChart"></div><div class="legendBar"></div><div class="legendTxt"><span data-i18n="legend_low">low</span><span id="treeLegendMax">high</span></div><div class="hint"><i class="grey"></i><span data-i18n="legend_no_data">no data for this metric (e.g. MI measured only for Python)</span></div></div>
+<div class="card span12"><div class="panelHead"><div><h3 id="hotTitle" data-i18n="hotspot_title">Hotspots: Churn × Complexity</h3><div class="muted small" id="hotSub" data-i18n="hotspot_sub">Top-right quadrant shows files that are both highly complex and frequently modified — prime candidates for refactoring. Bubble size = lines.</div></div></div>
 <div class="chart tall" id="hotChart"></div></div>
 </section>
 '''
 
-JS_HTML = '''<div class="section" id="frontend"><div><h2>Frontend · złożoność JS/TS</h2><p>Lizard liczy złożoność cyklomatyczną funkcji JavaScript i TypeScript — uzupełnia Radon, który mierzy tylko Pythona</p></div></div>
-<section class="layout"><div class="card span5"><h3>Rozkład CC funkcji JS/TS</h3><div class="muted small" id="jsInfo"></div><div class="chart" id="jsRanksChart"></div></div>
-<div class="card span7"><h3>Długość a złożoność funkcji</h3><div class="muted small">Każdy punkt to funkcja; widoczne są funkcje o CC ≥ 6, długie lub z wieloma parametrami.</div><div class="chart" id="jsScatter"></div></div>
-<div class="card span12"><div class="panelHead"><h3>Najbardziej złożone funkcje JS/TS</h3><div class="filters"><input id="jsSearch" type="search" placeholder="Funkcja lub plik…"/><select id="jsScope"><option value="prod">Tylko kod produkcyjny</option><option value="all">Wraz z testami</option></select></div></div>
-<div class="tblWrap" style="max-height:420px"><table><thead><tr><th>CC</th><th>NLOC</th><th>Param.</th><th>Funkcja</th><th>Plik:linia</th></tr></thead><tbody id="jsRows"></tbody></table></div><div class="hint" id="jsCount"></div></div></section>
+JS_HTML = '''<div class="section" id="frontend"><div><h2 data-i18n="frontend_title">Frontend · JS/TS Complexity</h2><p data-i18n="frontend_sub">Lizard evaluates cyclomatic complexity of JavaScript and TypeScript functions</p></div></div>
+<section class="layout"><div class="card span5"><h3 data-i18n="js_cc_dist">JS/TS Function CC Distribution</h3><div class="muted small" id="jsInfo"></div><div class="chart" id="jsRanksChart"></div></div>
+<div class="card span7"><h3 data-i18n="js_len_cc">Function Length vs Complexity</h3><div class="muted small" data-i18n="js_len_cc_sub">Each dot is a function; functions with CC ≥ 6, long, or with many parameters are visible.</div><div class="chart" id="jsScatter"></div></div>
+<div class="card span12"><div class="panelHead"><h3 data-i18n="js_top_funcs">Most Complex JS/TS Functions</h3><div class="filters"><input id="jsSearch" type="search" placeholder="Function or file…" data-i18n-ph="ph_func_or_file"/><select id="jsScope"><option value="prod" data-i18n="opt_prod_only">Production code only</option><option value="all" data-i18n="opt_all_incl_tests">Including tests</option></select></div></div>
+<div class="tblWrap" style="max-height:420px"><table><thead><tr><th>CC</th><th>NLOC</th><th data-i18n="th_params">Params</th><th data-i18n="th_func">Function</th><th data-i18n="th_file_line">File:Line</th></tr></thead><tbody id="jsRows"></tbody></table></div><div class="hint" id="jsCount"></div></div></section>
 '''
 
-SEC_HTML = '''<div class="section" id="security"><div><h2>Bezpieczeństwo</h2><p>Bandit (kod Python, lokalnie) i pip-audit (podatności zależności, wymaga internetu). Sygnały do weryfikacji, nie dowód podatności.</p></div></div>
-<section class="layout"><div class="card span4"><h3>Znaleziska bandit wg wagi</h3><div class="muted small" id="secInfo"></div><div class="chart" id="secDonut"></div></div>
-<div class="card span8"><h3>Najczęstsze reguły bandit</h3><div class="muted small">Tylko kod nie-testowy</div><div class="chart" id="secRules"></div></div>
-<div class="card span12"><div class="panelHead"><h3>Rejestr znalezisk bandit</h3><div class="filters"><input id="secSearch" type="search" placeholder="Plik, test, opis…"/><select id="secSev"><option value="">Wszystkie wagi</option><option value="HIGH">HIGH</option><option value="MEDIUM">MEDIUM</option><option value="LOW">LOW</option></select><select id="secScope"><option value="prod">Bez testów</option><option value="all">Wraz z testami</option></select></div></div>
-<div class="tblWrap" style="max-height:420px"><table><thead><tr><th>Waga</th><th>Test</th><th>Opis</th><th>Plik:linia</th></tr></thead><tbody id="secRows"></tbody></table></div><div class="hint" id="secCount"></div></div>
-<div class="card span12"><h3>Podatności zależności (pip-audit)</h3><div class="muted small" id="auditInfo"></div><div class="tblWrap" style="max-height:380px"><table><thead><tr><th>Pakiet</th><th>Wersja</th><th>Identyfikator</th><th>Wersje naprawcze</th><th>Opis</th></tr></thead><tbody id="auditRows"></tbody></table></div></div></section>
+SEC_HTML = '''<div class="section" id="security"><div><h2 data-i18n="security_title">Security Analysis</h2><p data-i18n="security_sub">Bandit (Python code, local) and Pip-Audit (dependency CVEs, requires internet). Verification signals, not proofs.</p></div></div>
+<section class="layout"><div class="card span4"><h3 data-i18n="sec_bandit_sev">Bandit Findings by Severity</h3><div class="muted small" id="secInfo"></div><div class="chart" id="secDonut"></div></div>
+<div class="card span8"><h3 data-i18n="sec_bandit_rules">Top Bandit Rules</h3><div class="muted small" data-i18n="sec_bandit_rules_sub">Non-test code only</div><div class="chart" id="secRules"></div></div>
+<div class="card span12"><div class="panelHead"><h3 data-i18n="sec_bandit_reg">Bandit Findings Registry</h3><div class="filters"><input id="secSearch" type="search" placeholder="File, test, description…" data-i18n-ph="ph_sec_search"/><select id="secSev"><option value="" data-i18n="opt_all_sev">All severities</option><option value="HIGH">HIGH</option><option value="MEDIUM">MEDIUM</option><option value="LOW">LOW</option></select><select id="secScope"><option value="prod" data-i18n="opt_prod_only">Excluding tests</option><option value="all" data-i18n="opt_all_incl_tests">Including tests</option></select></div></div>
+<div class="tblWrap" style="max-height:420px"><table><thead><tr><th data-i18n="th_sev">Severity</th><th data-i18n="th_test">Test</th><th data-i18n="th_desc">Description</th><th data-i18n="th_file_line">File:Line</th></tr></thead><tbody id="secRows"></tbody></table></div><div class="hint" id="secCount"></div></div>
+<div class="card span12"><h3 data-i18n="sec_audit_title">Dependency Vulnerabilities (Pip-Audit)</h3><div class="muted small" id="auditInfo"></div><div class="tblWrap" style="max-height:380px"><table><thead><tr><th data-i18n="th_pkg">Package</th><th data-i18n="th_ver">Version</th><th data-i18n="th_id">ID</th><th data-i18n="th_fix_ver">Fix Versions</th><th data-i18n="th_desc">Description</th></tr></thead><tbody id="auditRows"></tbody></table></div></div></section>
 '''
 
-DEBT_HTML = '''<div class="section" id="debt"><div><h2>Martwy kod i duplikacja</h2><p>Kandydaci na kod nieużywany (vulture) oraz powielone fragmenty (własna heurystyka okna 8 znaczących linii)</p></div></div>
-<section class="layout"><div class="card span5"><h3>Martwy kod wg typu</h3><div class="muted small" id="deadInfo"></div><div class="chart short" id="deadTypes"></div></div>
-<div class="card span7"><h3>Pliki z największą duplikacją</h3><div class="muted small" id="dupInfo"></div><div class="chart short" id="dupFiles"></div></div>
-<div class="card span7"><div class="panelHead"><h3>Kandydaci na martwy kod</h3><div class="filters"><input id="deadSearch" type="search" placeholder="Nazwa lub plik…"/><select id="deadConf"><option value="60">Pewność ≥ 60%</option><option value="80">Pewność ≥ 80%</option><option value="100">Pewność 100%</option></select><select id="deadScope"><option value="prod">Bez testów</option><option value="all">Wraz z testami</option></select></div></div>
-<div class="tblWrap" style="max-height:380px"><table><thead><tr><th>Pewność</th><th>Typ</th><th>Nazwa</th><th>Plik:linia</th></tr></thead><tbody id="deadRows"></tbody></table></div><div class="hint" id="deadCount"></div></div>
-<div class="card span5"><h3>Największe zduplikowane bloki</h3><div class="tblWrap" style="max-height:380px"><table><thead><tr><th>Linie</th><th>Fragment A</th><th>Fragment B</th></tr></thead><tbody id="dupRows"></tbody></table></div></div></section>
+DEBT_HTML = '''<div class="section" id="debt"><div><h2 data-i18n="debt_title">Dead Code & Duplication</h2><p data-i18n="debt_sub">Unused code candidates (Vulture) and duplicated blocks (heuristic 8-line sliding window)</p></div></div>
+<section class="layout"><div class="card span5"><h3 data-i18n="debt_dead_types">Dead Code by Type</h3><div class="muted small" id="deadInfo"></div><div class="chart short" id="deadTypes"></div></div>
+<div class="card span7"><h3 data-i18n="debt_dup_files">Files with Highest Duplication</h3><div class="muted small" id="dupInfo"></div><div class="chart short" id="dupFiles"></div></div>
+<div class="card span7"><div class="panelHead"><h3 data-i18n="debt_dead_cand">Dead Code Candidates</h3><div class="filters"><input id="deadSearch" type="search" placeholder="Name or file…" data-i18n-ph="ph_name_or_file"/><select id="deadConf"><option value="60" data-i18n="opt_conf_60">Confidence ≥ 60%</option><option value="80" data-i18n="opt_conf_80">Confidence ≥ 80%</option><option value="100" data-i18n="opt_conf_100">Confidence 100%</option></select><select id="deadScope"><option value="prod" data-i18n="opt_prod_only">Excluding tests</option><option value="all" data-i18n="opt_all_incl_tests">Including tests</option></select></div></div>
+<div class="tblWrap" style="max-height:380px"><table><thead><tr><th data-i18n="th_conf">Confidence</th><th data-i18n="th_type">Type</th><th data-i18n="th_name">Name</th><th data-i18n="th_file_line">File:Line</th></tr></thead><tbody id="deadRows"></tbody></table></div><div class="hint" id="deadCount"></div></div>
+<div class="card span5"><h3 data-i18n="debt_dup_blocks">Largest Duplicated Blocks</h3><div class="tblWrap" style="max-height:380px"><table><thead><tr><th data-i18n="th_lines">Lines</th><th data-i18n="th_frag_a">Fragment A</th><th data-i18n="th_frag_b">Fragment B</th></tr></thead><tbody id="dupRows"></tbody></table></div></div></section>
 '''
 
-DEPS_HTML = '''<div class="section" id="deps"><div><h2>Zależności między modułami</h2><p>Graf importów Python i JS/TS (własny parser). Czerwone węzły leżą w cyklach importów. Przeciągaj węzły, przewijaj, aby przybliżyć.</p></div></div>
-<section class="layout"><div class="card span12"><div class="panelHead"><div><h3>Graf zależności</h3><div class="muted small" id="depInfo"></div></div></div><div class="chart tall" id="depGraph"></div></div>
-<div class="card span4"><h3>Cykle importów</h3><div id="cycleList"></div></div>
-<div class="card span4"><h3>Najczęściej importowane (fan-in)</h3><div class="tblWrap" style="max-height:300px"><table><thead><tr><th>Moduł</th><th>Importów</th></tr></thead><tbody id="fanInRows"></tbody></table></div></div>
-<div class="card span4"><h3>Najwięcej importujące (fan-out)</h3><div class="tblWrap" style="max-height:300px"><table><thead><tr><th>Moduł</th><th>Importuje</th></tr></thead><tbody id="fanOutRows"></tbody></table></div></div></section>
+DEPS_HTML = '''<div class="section" id="deps"><div><h2 data-i18n="deps_title">Module Dependency Graph</h2><p data-i18n="deps_sub">Import relationships across Python and JS/TS. Red nodes belong to import cycles. Drag to pan, scroll to zoom.</p></div></div>
+<section class="layout"><div class="card span12"><div class="panelHead"><div><h3 data-i18n="deps_graph_title">Dependency Graph</h3><div class="muted small" id="depInfo"></div></div></div><div class="chart tall" id="depGraph"></div></div>
+<div class="card span4"><h3 data-i18n="deps_cycles">Import Cycles</h3><div id="cycleList"></div></div>
+<div class="card span4"><h3 data-i18n="deps_fan_in">Most Imported (Fan-in)</h3><div class="tblWrap" style="max-height:300px"><table><thead><tr><th data-i18n="th_module">Module</th><th data-i18n="th_imports">Imports</th></tr></thead><tbody id="fanInRows"></tbody></table></div></div>
+<div class="card span4"><h3 data-i18n="deps_fan_out">Most Importing (Fan-out)</h3><div class="tblWrap" style="max-height:300px"><table><thead><tr><th data-i18n="th_module">Module</th><th data-i18n="th_importing">Imports</th></tr></thead><tbody id="fanOutRows"></tbody></table></div></div></section>
 '''
 
-GIT_HTML = '''<section class="layout" style="margin-top:16px"><div class="card span12"><h3>Kalendarz aktywności</h3><div class="muted small" id="calInfo">Liczba commitów dziennie (ostatnie 12 miesięcy historii).</div><div class="chart short" id="calChart" style="height:230px"></div></div>
-<div class="card span12"><h3>Kiedy powstaje kod</h3><div class="muted small">Commity wg dnia tygodnia i godziny (czas lokalny autora commita).</div><div class="chart short" id="hourChart"></div></div></section>
+GIT_HTML = '''<section class="layout" style="margin-top:16px"><div class="card span12"><h3 data-i18n="git_cal_title">Activity Calendar</h3><div class="muted small" id="calInfo">Commit count per day (last 12 months of Git history).</div><div class="chart short" id="calChart" style="height:230px"></div></div>
+<div class="card span12"><h3 data-i18n="git_hour_title">Punchcard (Hour vs Day)</h3><div class="muted small" data-i18n="git_hour_sub">Commits by weekday and hour (author local time).</div><div class="chart short" id="hourChart"></div></div></section>
 '''
 
-METHOD_HTML = '''<div class="section"><div><h2>Metodologia rozszerzeń 2.2</h2></div></div><div class="card"><div class="tblWrap"><table><thead><tr><th>Oś radaru</th><th>Sposób obliczenia</th></tr></thead><tbody id="radarFormulas"></tbody></table></div>
-<div class="callout" style="margin-top:14px">Radar, trend i treemap służą do orientacji i ustalania kolejności przeglądu. Bandit i vulture nie znają kontekstu aplikacji (frameworki, wywołania dynamiczne), a duplikacja i graf zależności to heurystyki własne CodeAudit — nie zastępują przeglądu kodu, testów ani audytu bezpieczeństwa. pip-audit korzysta z internetowej bazy podatności i odzwierciedla jej stan z chwili audytu.</div><p class="muted small" id="toolVersions"></p></div>
+METHOD_HTML = '''<div class="section"><div><h2 data-i18n="method_ext_title">2.2 Extensions Methodology</h2></div></div><div class="card"><div class="tblWrap"><table><thead><tr><th data-i18n="th_radar_axis">Radar Axis</th><th data-i18n="th_calc_method">Calculation Method</th></tr></thead><tbody id="radarFormulas"></tbody></table></div>
+<div class="callout" style="margin-top:14px" data-i18n="callout_method_22">Radar, trend, and treemap serve as navigation and review prioritization tools. Bandit and Vulture lack application framework context (dynamic calls, DI), while duplication and dependency graphs are CodeAudit heuristics — they do not replace code review, tests, or security audits. Pip-audit reflects the state of the vulnerability database at scan time.</div><p class="muted small" id="toolVersions"></p></div>
 '''
 
-MODAL_HTML = '''<div class="modalBack" id="fileModal" role="dialog" aria-modal="true" aria-labelledby="fmTitle"><div class="modal"><div class="panelHead"><div><div class="eyebrow">SZCZEGÓŁY PLIKU</div><h3 id="fmTitle"></h3></div><button id="fmClose">Zamknij ✕</button></div><div id="fmBody"></div></div></div>
+MODAL_HTML = '''<div class="modalBack" id="fileModal" role="dialog" aria-modal="true" aria-labelledby="fmTitle"><div class="modal"><div class="panelHead"><div><div class="eyebrow" data-i18n="modal_title">FILE DETAILS</div><h3 id="fmTitle"></h3></div><button id="fmClose" data-i18n="modal_close">Close ✕</button></div><div id="fmBody"></div></div></div>
 '''
 
 
@@ -141,20 +147,20 @@ def _before(tpl: str, marker: str, block: str) -> str:
 
 
 def inject(tpl: str) -> str:
-    """Wstrzykuje nowe sekcje, style, ECharts i skrypt do szablonu 2.1."""
+    """Wstrzykuje nowe sekcje, style, ECharts i skrypt do szablonu 2.1/2.2."""
     tpl = tpl.replace("</style></head>", CSS + "</style></head>", 1)
     tpl = tpl.replace("CodeAudit 2.1 · Engineering Intelligence", "CodeAudit 2.2 · Engineering Intelligence")
     tpl = tpl.replace("/ 2.1<", "/ 2.2<").replace("CodeAudit 2.1 · Radon", "CodeAudit 2.2 · Radon")
-    tpl = tpl.replace('<button id="theme">', '<button id="printBtn" title="Drukuj / zapisz jako PDF">⎙ PDF</button><button id="theme">', 1)
-    tpl = tpl.replace('<a href="#quality">Jakość</a>', '<a href="#quality">Jakość</a><a href="#map">Mapa kodu</a>', 1)
-    tpl = tpl.replace('<a href="#git">Git</a>', '<a href="#frontend">Frontend</a><a href="#security">Bezpieczeństwo</a><a href="#debt">Dług</a><a href="#deps">Zależności</a><a href="#git">Git</a>', 1)
+    if '<button id="printBtn"' not in tpl:
+        tpl = tpl.replace('<button id="theme"', '<button id="printBtn" title="Print / PDF" data-i18n="btn_print">⎙ PDF</button><button id="theme"')
+    tpl = tpl.replace('<a href="#quality" data-i18n="nav_quality">Quality</a>', '<a href="#quality" data-i18n="nav_quality">Quality</a><a href="#map" data-i18n="nav_map">Code Map</a>', 1)
+    tpl = tpl.replace('<a href="#git" data-i18n="nav_git">Git</a>', '<a href="#frontend" data-i18n="nav_frontend">Frontend</a><a href="#security" data-i18n="nav_security">Security</a><a href="#debt" data-i18n="nav_debt">Debt</a><a href="#deps" data-i18n="nav_deps">Dependencies</a><a href="#git" data-i18n="nav_git">Git</a>', 1)
     tpl = _before(tpl, '<section class="layout" id="overview">', EXEC_HTML)
     tpl = _before(tpl, '<div class="section" id="compare">', KPI2_HTML + RADAR_HTML)
     tpl = _before(tpl, '<div class="section" id="sensitive">', MAP_HTML)
     tpl = _before(tpl, '<div class="section" id="structure">', JS_HTML + SEC_HTML + DEBT_HTML + DEPS_HTML)
     tpl = _before(tpl, '<div class="section" id="scope">', GIT_HTML)
     tpl = tpl.replace("</main>", METHOD_HTML + "</main>", 1)
-    tpl = tpl.replace("</body></html>", MODAL_HTML + "</body></html>", 1) if False else tpl
     tpl = _before(tpl, "<footer", MODAL_HTML)
     lib = find_echarts()
     lib_js = lib.read_text(encoding="utf-8").replace("</script", "<\\/script") if lib else ""

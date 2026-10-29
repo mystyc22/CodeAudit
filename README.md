@@ -153,28 +153,42 @@ python audit.py "C:\path\to\your-project" --pip-audit --requirements C:\Tools\Co
 
 ---
 
-## 6. Output Reports & Artifacts
+## 6. Output Reports & Artifacts (Multilingual: EN, PL, ZH)
 
-Audits generate a timestamped subfolder inside `reports/` (e.g., `reports/ProjectName_20261029_020000/`):
+CodeAudit generates comprehensive, publication-ready reports in **3 languages** (English, Polish, and Simplified Chinese) simultaneously:
 
-| File | Format | Contents |
+### 6.1 Interactive Offline HTML Dashboard (`report.html`)
+- **Interactive Language Switcher**: Toggle effortlessly between **English (EN)**, **Polish (PL)**, and **Simplified Chinese (ZH)** with a single click in the top navbar.
+- **100% Offline & Zero-CDN**: Embedded with Apache ECharts (`vendor/echarts.min.js`), requiring no internet connection or external CDN requests.
+- **Dynamic Content Updates**: Switching languages instantly translates navigation, section titles, KPI cards, table headers, risk descriptions, and data charts without page reloads.
+- **Extensible i18n Architecture**: Designed around a modular translation engine (`i18n.py`) allowing additional languages to be added easily.
+
+### 6.2 Markdown Reports (`.md`)
+Generated in dedicated language files alongside the default report:
+- `report.md`: Default report (English).
+- `report_en.md`: English report.
+- `report_pl.md`: Polish report (*Raport z audytu kodu*).
+- `report_zh.md`: Simplified Chinese report (*代码质量与可维护性技术审计报告*).
+
+### 6.3 Localized CSV Datasets (`.csv`)
+All CSV files are produced in 3 localized variants with translated column headers and translated categorical values (severity, kinds, triage status), encoded in **UTF-8 with BOM (`utf-8-sig`)** for seamless loading into Microsoft Excel and spreadsheet tools:
+
+| Base Dataset | Localized Variants | Description |
 |---|---|---|
-| `report.html` | HTML / ECharts | Interactive visual dashboard (Treemap, Churn Hotspots, Health Radar, Trend graph, Git Activity, Dependency Graph, light/dark themes, print-to-PDF button) |
-| `report.md` | Markdown | Comprehensive summary report with Halstead, MI, CC, ESLint, and Git metrics |
-| `metrics.json` | JSON | Complete machine-readable metrics dump used for multi-run delta comparisons |
-| `files.csv` | CSV | Metrics per individual analyzed file |
-| `functions.csv` | CSV | Python functions and methods ranked by Cyclomatic Complexity (Radon) |
-| `js_functions.csv` | CSV | JavaScript/TypeScript functions with CC and NLOC metrics (Lizard) |
-| `issues.csv` | CSV | Full listing of ESLint / SonarJS / React Hooks issues |
-| `security_bandit.csv` | CSV | Static security findings from Bandit (password values masked with `***`) |
-| `security_dependencies.csv` | CSV | Known dependency vulnerabilities from Pip-Audit |
-| `dead_code.csv` | CSV | Dead code candidates identified by Vulture |
-| `duplication.csv` | CSV | Largest duplicate code blocks detected |
-| `dependencies.csv` | CSV | Graph edges representing file import relationships |
-| `sensitive_files.csv` | CSV | Triage list of high-risk / high-churn / domain-critical files for manual review |
-| `git_commits.csv` | CSV | History of scanned non-merge commits |
-| `git_hotspots.csv` | CSV | Code files ranked by churn and modification frequency |
-| `git_monthly.csv` / `weekly.csv` | CSV | Code addition/deletion velocity aggregated over time |
+| `files.csv` | `files_en.csv`, `files_pl.csv`, `files_zh.csv` | Metrics per individual analyzed file |
+| `functions.csv` | `functions_en.csv`, `functions_pl.csv`, `functions_zh.csv` | Python functions and methods ranked by Cyclomatic Complexity |
+| `js_functions.csv` | `js_functions_en.csv`, `js_functions_pl.csv`, `js_functions_zh.csv` | JavaScript/TypeScript functions with CC and NLOC metrics (Lizard) |
+| `issues.csv` | `issues_en.csv`, `issues_pl.csv`, `issues_zh.csv` | Full listing of ESLint / SonarJS / React Hooks issues |
+| `security_bandit.csv` | `security_bandit_en.csv`, `security_bandit_pl.csv`, `security_bandit_zh.csv` | Static security findings from Bandit (passwords masked with `***`) |
+| `security_dependencies.csv` | `security_dependencies_en.csv`, `_pl.csv`, `_zh.csv` | Known dependency vulnerabilities from Pip-Audit |
+| `dead_code.csv` | `dead_code_en.csv`, `dead_code_pl.csv`, `dead_code_zh.csv` | Dead code candidates identified by Vulture |
+| `duplication.csv` | `duplication_en.csv`, `duplication_pl.csv`, `duplication_zh.csv` | Largest duplicate code blocks detected |
+| `dependencies.csv` | `dependencies_en.csv`, `dependencies_pl.csv`, `dependencies_zh.csv` | Graph edges representing file import relationships |
+| `sensitive_files.csv` | `sensitive_files_en.csv`, `_pl.csv`, `_zh.csv` | Triage list of high-risk / domain-critical files for manual review |
+| `git_commits.csv` | `git_commits_en.csv`, `git_commits_pl.csv`, `git_commits_zh.csv` | History of scanned non-merge commits |
+| `git_hotspots.csv` | `git_hotspots_en.csv`, `git_hotspots_pl.csv`, `git_hotspots_zh.csv` | Code files ranked by churn and modification frequency |
+| `git_monthly.csv` / `weekly.csv` | `git_monthly_*.csv`, `git_weekly_*.csv` | Code addition/deletion velocity aggregated over time |
+| `metrics.json` | — | Complete machine-readable metrics dump used for multi-run delta comparisons |
 
 ---
 
