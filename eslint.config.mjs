@@ -9,11 +9,10 @@ import globals from 'globals';
 const jsFiles = ['**/*.{js,jsx,mjs,cjs}'];
 const reactFiles = [
   '**/*.jsx',
-  'src/**/*.{js,jsx}',
-  'client/**/*.{js,jsx}',
-  'app/**/*.{js,jsx}',
-  'frontend/**/*.{js,jsx}',
-  'web/**/*.{js,jsx}',
+  'client-app/**/*.{js,jsx}',
+  'hub-app/**/*.{js,jsx}',
+  'courier-viz/**/*.{js,jsx}',
+  'web-common/**/*.{js,jsx}',
 ];
 
 export default [
