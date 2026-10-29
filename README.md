@@ -1,8 +1,55 @@
-# CodeAudit 2.2 — Python, React, JavaScript, Security & Git History Audit
+# CodeAudit 2.2 — Engineering Intelligence & Security Audit Suite
 
-CodeAudit is an independent, non-intrusive static code quality and security analysis suite.
+<p align="center">
+  <a href="https://github.com/mystyc22/CodeAudit/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License: MIT"></a>
+  <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.10+-3776AB.svg?logo=python&logoColor=white" alt="Python 3.10+"></a>
+  <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/node-18+-339933.svg?logo=node.js&logoColor=white" alt="Node 18+"></a>
+  <img src="https://img.shields.io/badge/offline-100%25%20Zero--CDN-orange.svg" alt="100% Offline Zero-CDN">
+  <img src="https://img.shields.io/badge/i18n-EN%20%7C%20PL%20%7C%20ZH-8A2BE2.svg" alt="Languages: EN | PL | ZH">
+  <a href="https://github.com/mystyc22/CodeAudit/issues"><img src="https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat" alt="Contributions Welcome"></a>
+</p>
 
-**CodeAudit is strictly read-only.** It never alters source code, does not execute `eslint --fix`, never runs `git fetch/pull/reset`, and avoids network calls by default. All reports and metrics are written outside the audited project into `CodeAudit/reports/` (or a custom `--out` destination).
+<p align="center">
+  <b><a href="README.md">🇺🇸 English</a></b> • <b><a href="README_PL.md">🇵🇱 Polski</a></b>
+</p>
+
+> **Professional static code analysis, security scanning, and Git forensics for Python & JavaScript/TypeScript codebases.**  
+> Generates comprehensive Markdown reports, Excel-ready localized CSV datasets, and an **interactive, 100% offline HTML dashboard** in English, Polish, and Simplified Chinese.
+
+---
+
+## ⚡ 60-Second Quickstart
+
+Get up and running in 3 simple commands:
+
+```powershell
+# 1. Install Python analyzers
+python -m pip install radon lizard vulture bandit pip-audit
+
+# 2. Install ESLint & plugins (generates node_modules)
+cd C:\Tools\CodeAudit
+npm install
+
+# 3. Run audit on any target project (strictly read-only)
+.\Run-CodeAudit.ps1 -ProjectPath "C:\path\to\your-project"
+```
+
+*Results will open automatically in `C:\Tools\CodeAudit\reports\<ProjectName>_<timestamp>\report.html`!*
+
+---
+
+## 🌟 Why CodeAudit?
+
+- 🛡️ **Strictly Read-Only & Non-Intrusive**: CodeAudit never alters source code, never executes `eslint --fix`, never touches `git checkout/pull`, and makes no network calls by default. All outputs are written outside the audited codebase.
+- 🔌 **100% Offline & Zero-CDN**: The interactive HTML dashboard embeds Apache ECharts locally (`vendor/echarts.min.js`). Works flawlessly in air-gapped corporate and enterprise environments.
+- 🌐 **Native Multilingual (EN / PL / ZH)**: One-click language switcher in the HTML dashboard + localized Markdown (`report_en.md`, `report_pl.md`, `report_zh.md`) and localized CSV exports with UTF-8 BOM encoding for Microsoft Excel.
+- 📊 **Complete Engineering Spectrum**:
+  - **Complexity & Maintainability**: Cyclomatic Complexity (Radon for Python, Lizard for JS/TS), Maintainability Index (MI), and full 12-metric Halstead suite.
+  - **Linter & Best Practices**: ESLint 9 flat config with SonarJS, React, and React Hooks rules.
+  - **Security & Vulnerabilities**: Bandit static security scanner (masked password literals) and Pip-Audit CVE checker.
+  - **Technical Debt**: Vulture dead-code detection, heuristic 8-line duplicate code block detector, and module import dependency graph with cycle detection.
+  - **Git Forensics**: Churn hotspots, commit velocity (monthly/weekly), and author activity punchcards.
+- 🔄 **Automated Baseline Tracking**: Automatically compares metrics against your previous `metrics.json` audit run.
 
 ---
 
@@ -16,7 +63,7 @@ CodeAudit is an independent, non-intrusive static code quality and security anal
   ```bash
   git --version
   ```
-- **Extended Analyzers in v2.2 (Recommended)**:
+- **Extended Analyzers (Recommended)**:
   ```bash
   python -m pip install lizard vulture bandit pip-audit
   ```
@@ -28,13 +75,12 @@ CodeAudit is an independent, non-intrusive static code quality and security anal
   ```
   *(Or manually: `npm install --save-dev eslint@9 @eslint/js@9 eslint-plugin-sonarjs eslint-plugin-react eslint-plugin-react-hooks globals`).*
 
-> **Offline Dashboard**: The Apache ECharts visualization library is bundled under `vendor/echarts.min.js` and embedded directly into `report.html`. The interactive dashboard works 100% offline without external CDN requests.
-
 ---
 
 ## 2. Project Architecture & Components
 
 - `audit.py`: Core orchestrator managing inventory, Radon metrics, and ESLint batches.
+- `i18n.py`: Modular internationalization engine powering Markdown, CSV, and HTML translations.
 - `audit_reporting.py`: Maintainability scoring, historical audit comparison, and sensitive-file identification.
 - `html_dashboard.py` / `dashboard_extra.py` / `dashboard_charts.js`: Offline interactive dashboard with ECharts treemaps, heatmaps, and radars.
 - `extra_analyzers.py`: Integrations for Lizard (JS/TS complexity), Vulture (dead code), Bandit (security), Pip-Audit (vulnerabilities), duplication detection, and module dependency graphs.
@@ -46,7 +92,7 @@ CodeAudit is an independent, non-intrusive static code quality and security anal
 
 ---
 
-## 3. Quick Start
+## 3. Usage & Execution
 
 ### Basic Usage (PowerShell)
 
@@ -104,7 +150,7 @@ Both `Run-CodeAudit.ps1` and `audit.py` accept the following configuration param
 
 ### How to Generate a Pinned Requirements File for Your Project
 
-`pip-audit` requires pinned versions (e.g. `fastapi==0.115.0`) to check vulnerabilities. If your target project **has unpinned versions** (e.g. just `fastapi` or `fastapi>=0.100`), or **does not have a `requirements.txt` file at all** (e.g. poetry, pyproject.toml, or ad-hoc setup), you can easily generate an external pinned file without touching or modifying the target project:
+If your target project **has unpinned versions** (e.g. just `fastapi` or `fastapi>=0.100`), or **does not have a `requirements.txt` file at all** (e.g. poetry, pyproject.toml, or ad-hoc setup), you can easily generate an external pinned file without modifying the target project:
 
 #### Scenario 1: Project has `requirements.txt` but WITHOUT exact versions
 Extract only the package names defined in the project, match them against the exact versions currently installed in Python, and save outside the project:
@@ -171,7 +217,7 @@ Generated in dedicated language files alongside the default report:
 - `report_zh.md`: Simplified Chinese report (*代码质量与可维护性技术审计报告*).
 
 ### 6.3 Localized CSV Datasets (`.csv`)
-All CSV files are produced in 3 localized variants with translated column headers and translated categorical values (severity, kinds, triage status), encoded in **UTF-8 with BOM (`utf-8-sig`)** for seamless loading into Microsoft Excel and spreadsheet tools:
+All CSV files are produced in 3 localized variants with translated column headers and translated categorical values (severity, kinds, triage status), encoded in **UTF-8 with BOM (`utf-8-sig`)** for seamless loading into Microsoft Excel:
 
 | Base Dataset | Localized Variants | Description |
 |---|---|---|
@@ -227,4 +273,3 @@ Contributions, feedback, and issue reports are welcome! Please open an issue or 
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
-
