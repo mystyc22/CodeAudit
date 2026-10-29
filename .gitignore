@@ -1,0 +1,10 @@
+node_modules/
+reports/
+package-lock.json
+*.pyc
+__pycache__/
+.pytest_cache/
+.coverage
+*.log
+*.tmp
+
